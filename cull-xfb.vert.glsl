@@ -20,35 +20,36 @@
 //#define OCCLUSION
 
 #ifdef DUALINDEX
-layout(location=0) in int  bboxIndex;
-layout(location=2) in int  matrixIndex;
+  layout(location=0) in int  bboxIndex;
+  layout(location=2) in int  matrixIndex;
 
-uniform samplerBuffer     bboxesTex;
-vec4 bboxMin = texelFetch(bboxesTex, bboxIndex*2+0);
-vec4 bboxMax = texelFetch(bboxesTex, bboxIndex*2+1);
+  uniform samplerBuffer     bboxesTex;
+  vec4 bboxMin = texelFetch(bboxesTex, bboxIndex*2+0);
+  vec4 bboxMax = texelFetch(bboxesTex, bboxIndex*2+1);
 #else
-layout(location=0) in vec4 bboxMin;
-layout(location=1) in vec4 bboxMax;
-layout(location=2) in int  matrixIndex;
+// lmz vertex attribute, bboxMin 0, bboxMax 1, matrixIndex 2(index of the object)
+  layout(location=0) in vec4 bboxMin;
+  layout(location=1) in vec4 bboxMax;
+  layout(location=2) in int  matrixIndex;
 #endif
 
 #if GL_ARB_shader_storage_buffer_object
-layout(std430,binding=0)  writeonly buffer outputBuffer {
-  int outstream[];
-};
+  layout(std430,binding=0)  writeonly buffer outputBuffer {
+    int outstream[];
+  };
 
-void storeOutput(int value)
-{
-  outstream[gl_VertexID] = value;
-}
+  void storeOutput(int value)
+  {
+    outstream[gl_VertexID] = value;
+  }
 
 #else
-flat out int outstream;
+  flat out int outstream;
 
-void storeOutput(int value)
-{
-  outstream = value;
-}
+  void storeOutput(int value)
+  {
+    outstream = value;
+  }
 #endif
 
 uniform mat4              viewProjTM;
@@ -88,6 +89,7 @@ vec3 projected(mat4 a, vec4 pos) {
 
 void main (){
   int isvisible = 0;
+  // lmz matrixIndex, the index of object
   int matindex = (matrixIndex*MATRICES + MATRIX_WORLD)*4;
   mat4 worldTM = mat4(
     texelFetch(matricesTex,matindex + 0),
@@ -103,6 +105,7 @@ void main (){
 
   for (int n = 1; n < 8; n++){
     vec3 ab = projected(worldViewProjTM, getBoxCorner(n));
+    // lmz These all operate component-wise, eg: the min of (1, 3) and (4, -2) is (1, -2).
     clipmin = min(clipmin,ab);
     clipmax = max(clipmax,ab);
   }

@@ -26,8 +26,13 @@
 
 #include "cullingsystem.hpp"
 #include <assert.h>
+#include <string>
+
+#include <nv_helpers_gl/glresources.hpp>
 
 #define DEBUG_VISIBLEBOXES  0
+
+using namespace nv_helpers_gl;
 
 inline unsigned int minDivide(unsigned int val, unsigned int alignment)
 {
@@ -117,6 +122,22 @@ void CullingSystem::buildDepthMipmaps( GLuint textureDepth, int width, int heigh
   glActiveTexture(GL_TEXTURE0_ARB);
   glBindTexture(GL_TEXTURE_2D, textureDepth);
 
+  bool lmz = false;
+  static ResourceGLuint testCullCounter;
+  if (lmz)
+  {
+	  if (testCullCounter.m_value == 0)
+	  {
+		  newBuffer(testCullCounter);
+		  //glNamedBufferDataEXT(testCullCounter, sizeof(int), NULL, GL_DYNAMIC_COPY);
+		  glNamedBufferDataEXT(testCullCounter, sizeof(int), NULL, GL_STATIC_DRAW);
+	  }
+
+	  glBindBufferRange(GL_ATOMIC_COUNTER_BUFFER, 0, testCullCounter.m_value, 0, sizeof(int));
+	  //testCullCounter.BindBufferRange(GL_ATOMIC_COUNTER_BUFFER, 0);
+	  glClearBufferSubData(GL_ATOMIC_COUNTER_BUFFER, GL_R32UI, 0, sizeof(int), GL_RED_INTEGER, GL_UNSIGNED_INT, 0);
+	  //m_bufferIndirectCounter.ClearBufferSubData(GL_ATOMIC_COUNTER_BUFFER, GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, 0);
+  }
 
   while (dim){
     if (level){
@@ -127,7 +148,15 @@ void CullingSystem::buildDepthMipmaps( GLuint textureDepth, int width, int heigh
       glUniform1i(m_uniforms.depth_lod, level-1);
       glUniform1i(m_uniforms.depth_even, wasEven);
 
+	  // lmz ??? count is 3, not 4.
       glDrawArrays(GL_TRIANGLES,0,3);
+
+	  if (lmz)
+	  {
+		  GLuint* pCounter = (GLuint*)glMapBufferRange(GL_ATOMIC_COUNTER_BUFFER, 0, 1 * sizeof(GLuint), GL_MAP_READ_BIT);
+		  GLuint counter = *pCounter;
+		  glUnmapBuffer(GL_ATOMIC_COUNTER_BUFFER);
+	  }
     }
 
     wasEven = (twidth % 2 == 0) && (theight % 2 == 0);
@@ -239,11 +268,16 @@ void CullingSystem::bitsFromOutput( Job &job, BitType type)
   // using compute instead of "invisible" point drawing
   // would be better if we had really huge thread counts
 
+	std::string str("bitsFromOutput: ");
+	str += GetBitTypeString(type);
+	KG3DPERF_STATE(str.c_str());
+
   glEnable(GL_RASTERIZER_DISCARD);
 
   glBindBuffer(GL_ARRAY_BUFFER, job.m_bufferVisOutput.buffer);
   for (int i = 0; i < 8; i++){
-    glVertexAttribIPointer(i, 4, GL_UNSIGNED_INT, sizeof(int)*32, (const void*)(i*sizeof(int)*4 + job.m_bufferVisOutput.offset));
+    glVertexAttribIPointer(i, 4, GL_UNSIGNED_INT, sizeof(int)*32, 
+		(const void*)(i*sizeof(int)*4 + job.m_bufferVisOutput.offset));
     glVertexAttribDivisor(i, 0);
     glEnableVertexAttribArray(i);
   }
@@ -268,6 +302,7 @@ void CullingSystem::bitsFromOutput( Job &job, BitType type)
     glBeginTransformFeedback(GL_POINTS);
   }
 
+  // lmz use bit to store the visibility of objects, unsigned int is 32 bits
   glDrawArrays(GL_POINTS,0, minDivide(job.m_numObjects,32));
 
   if (m_usessbo){
@@ -295,6 +330,10 @@ void CullingSystem::resultFromBits( Job &job )
 
 void CullingSystem::buildOutput( MethodType method, Job &job, const View& view )
 {
+	std::string str("buildOutput: ");
+	str += GetMethodTypeString(method);
+	KG3DPERF_STATE(str.c_str());
+
   switch(method){
   case METHOD_FRUSTUM:
     {
@@ -320,6 +359,7 @@ void CullingSystem::buildOutput( MethodType method, Job &job, const View& view )
     break;
   case METHOD_RASTER:
     {
+	  // lmz m_bufferVisOutput has been already used in Cull Frustum, so clear
       // clear visibles
       job.m_bufferVisOutput.BindBufferRange(GL_SHADER_STORAGE_BUFFER,0);
       glClearBufferData(GL_SHADER_STORAGE_BUFFER, GL_R32UI,GL_RED_INTEGER,GL_UNSIGNED_INT,0);
@@ -354,6 +394,8 @@ void CullingSystem::swapBits( Job &job )
 
 void CullingSystem::JobIndirectUnordered::resultFromBits( const Buffer& bufferVisBitsCurrent )
 {
+	// lmz store drawcmd in m_bufferIndirectResult of visible objects
+	KG3DPERF_STATE("resultFromBits: JobIndirectUnordered");
   glEnable(GL_RASTERIZER_DISCARD);
 
   glUseProgram(m_program_indirect_compact);
@@ -378,6 +420,7 @@ void CullingSystem::JobIndirectUnordered::resultFromBits( const Buffer& bufferVi
 
 void CullingSystem::JobReadback::resultFromBits( const Buffer& bufferVisBitsCurrent )
 {
+	KG3DPERF_STATE("resultFromBits: JobReadback");
   GLsizeiptr size = sizeof(int) * minDivide(m_numObjects,32);
   glBindBuffer(GL_COPY_READ_BUFFER, bufferVisBitsCurrent.buffer );
   glBindBuffer(GL_COPY_WRITE_BUFFER, m_bufferVisBitsReadback.buffer );

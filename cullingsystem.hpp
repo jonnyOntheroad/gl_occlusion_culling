@@ -28,25 +28,59 @@
 
 #include <GL/glew.h>
 
+class KG3D_PerfHelper
+{
+public:
+	//inline KG3D_PerfHelper(const char *pcszName) { glPushGroupMarkerEXT(0, pcszName); }
+	//~KG3D_PerfHelper() { glPopGroupMarkerEXT(); };
+
+	inline KG3D_PerfHelper(const char *pcszName) { glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 1,-1, pcszName); }
+	~KG3D_PerfHelper() { glPopDebugGroup(); };
+};
+
+#define KG3DPERF_STATE(szName) KG3D_PerfHelper PerfHelper##__LINE__(szName)
+
 class CullingSystem {
 public:
   struct Programs {
+	  // lmz GL_VERTEX_SHADER,  "cull-xfb.vert.glsl"
     GLuint  object_frustum;
+	// lmz GL_VERTEX_SHADER,  "#define OCCLUSION\n", "cull-xfb.vert.glsl"
     GLuint  object_hiz;
     GLuint  object_raster;
 
     GLuint  bit_temporallast;
     GLuint  bit_temporalnew;
+	// lmz GL_VERTEX_SHADER, "#define TEMPORAL 0\n", "cull-bitpack.vert.glsl"
     GLuint  bit_regular;
     GLuint  depth_mips;
   };
 
   enum MethodType {
+	  // lmz visibility by vertex shader (points and bbox)
     METHOD_FRUSTUM,
     METHOD_HIZ,
     METHOD_RASTER,
     NUM_METHODS,
   };
+  char *GetMethodTypeString(enum MethodType type)
+  {
+	  switch (type)
+	  {
+	  case CullingSystem::METHOD_FRUSTUM:
+		  return "METHOD_FRUSTUM";
+		  break;
+	  case CullingSystem::METHOD_HIZ:
+		  return "METHOD_HIZ";
+		  break;
+	  case CullingSystem::METHOD_RASTER:
+		  return "METHOD_RASTER";
+		  break;
+	  case CullingSystem::NUM_METHODS:		  
+	  default:
+		  return "Error";
+	  }
+  }
 
   enum BitType {
     BITS_CURRENT,
@@ -54,6 +88,25 @@ public:
     BITS_CURRENT_AND_NOT_LAST,
     NUM_BITS,
   };
+
+  char *GetBitTypeString(enum BitType type)
+  {
+	  switch (type)
+	  {
+	  case CullingSystem::BITS_CURRENT:
+		  return "BITS_CURRENT";
+		  break;
+	  case CullingSystem::BITS_CURRENT_AND_LAST:
+		  return "BITS_CURRENT_AND_LAST";
+		  break;
+	  case CullingSystem::BITS_CURRENT_AND_NOT_LAST:
+		  return "BITS_CURRENT_AND_NOT_LAST";
+		  break;
+	  case CullingSystem::NUM_BITS:
+	  default:
+		  return "Error";
+	  }
+  }
 
   struct Buffer {
     GLuint      buffer;
@@ -102,6 +155,7 @@ public:
     Buffer  m_bufferMatrices;
     Buffer  m_bufferBboxes; // only used in dualindex mode (2 x vec4)
       // 1 32-bit integer per object (index)
+	// lmz index of geometry
     Buffer  m_bufferObjectMatrix;
       // object-space bounding box (2 x vec4)
       // or 1 32-bit integer per object (dualindex mode)
@@ -135,7 +189,9 @@ public:
   // multidrawindirect based
   class JobIndirectUnordered : public Job {
   public:
+	  // lmz GL_VERTEX_SHADER, "cull-indirectunordered.vert.glsl")
     GLuint  m_program_indirect_compact;
+	// lmz from scene_indirect, &sceneCmds[0]
     // 1 indirectSize per object, 
     Buffer  m_bufferObjectIndirects;
     Buffer  m_bufferIndirectResult;

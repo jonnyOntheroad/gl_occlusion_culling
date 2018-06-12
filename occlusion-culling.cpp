@@ -116,9 +116,12 @@ namespace ocull
         scene_ubo,
         scene_vbo,
         scene_ibo,
+		// lmz buffer stores world matrix and its inverse
         scene_matrices,
         scene_bboxes,
+		// lmz stores geometry indices
         scene_matrixindices,
+		// lmz buffer stores sceneCmds
         scene_indirect,
 
         scene_token,
@@ -154,9 +157,11 @@ namespace ocull
       ResourceGLuint
         scene_color,
         scene_depthstencil,
+		// lmz stores buffer of scene_matrices
         scene_matrices;
     } textures;
 
+	// lmz same as DrawElementsIndirectCommand
     struct DrawCmd {
       GLuint count;
       GLuint instanceCount;
@@ -245,7 +250,9 @@ namespace ocull
 
 
     std::vector<int>            sceneVisBits;
+	// lmz one DrawCmd is a geometry
     std::vector<DrawCmd>        sceneCmds;
+	// lmz world matrix and its inverse matrix
     std::vector<nv_math::mat4f> sceneMatrices;
     std::vector<nv_math::mat4f> sceneMatricesAnimated;
 
@@ -835,6 +842,7 @@ namespace ocull
   
   void Sample::CullJobToken::resultFromBits( const CullingSystem::Buffer& bufferVisBitsCurrent )
   {
+	  KG3DPERF_STATE("resultFromBits: CullJobToken");
     // First we compute sizes based on culling result
     // it generates an output stream where size[token] is either 0 or original size
     // depending on which object the token belonged to.
@@ -923,7 +931,19 @@ namespace ocull
 
   void Sample::drawScene(bool depthonly, const char* what)
   {
+	  /* lmz
+	    what: 
+			depth： 渲染frustum cull后的结果，生成depth，供occlusion cull使用
+			scene:  渲染oc后的结果，color、depth都有
+			new:
+			last:
+	  */
     NV_PROFILE_SECTION(what);
+
+	std::string str("drawScene: ");
+	str += depthonly ? "depthOnly true; " : "depthOnly false; ";
+	str += what;
+	KG3DPERF_STATE(str.c_str());
 
     if (depthonly){
       glColorMask(GL_FALSE,GL_FALSE,GL_FALSE,GL_FALSE);
@@ -1048,6 +1068,7 @@ namespace ocull
 
   void Sample::drawCullingTemporal(CullingSystem::Job& cullJob)
   {
+	  KG3DPERF_STATE("drawCullingTemporal");
     CullingSystem::View view;
     view.viewPos = sceneUbo.viewPos.get_value();
     view.viewDir = sceneUbo.viewDir.get_value();
@@ -1141,6 +1162,8 @@ namespace ocull
 
   void Sample::drawCullingRegular(CullingSystem::Job& cullJob)
   {
+	  KG3DPERF_STATE("drawCullingRegular");
+
     CullingSystem::View view;
     view.viewPos = sceneUbo.viewPos.get_value();
     view.viewDir = sceneUbo.viewDir.get_value();
@@ -1151,6 +1174,7 @@ namespace ocull
       {
         {
           NV_PROFILE_SECTION("CullF");
+		  KG3DPERF_STATE("CullF");
           cullSys.buildOutput( tweak.method, cullJob, view );
           cullSys.bitsFromOutput( cullJob, CullingSystem::BITS_CURRENT );
           cullSys.resultFromBits( cullJob );
@@ -1163,6 +1187,7 @@ namespace ocull
       {
         {
           NV_PROFILE_SECTION("CullF");
+		  KG3DPERF_STATE("CullF");
           cullSys.buildOutput( CullingSystem::METHOD_FRUSTUM, cullJob, view );
           cullSys.bitsFromOutput( cullJob, CullingSystem::BITS_CURRENT );
           cullSys.resultFromBits( cullJob );
@@ -1172,6 +1197,7 @@ namespace ocull
 
         {
           NV_PROFILE_SECTION("Mip");
+		  KG3DPERF_STATE("Mip");
           // changes FBO binding
           cullSys.buildDepthMipmaps( textures.scene_depthstencil, m_window.m_viewsize[0], m_window.m_viewsize[1]);
         }
@@ -1179,6 +1205,7 @@ namespace ocull
 
         {
           NV_PROFILE_SECTION("CullH");
+		  KG3DPERF_STATE("CullH");
           cullSys.buildOutput( CullingSystem::METHOD_HIZ, cullJob, view );
           cullSys.bitsFromOutput( cullJob, CullingSystem::BITS_CURRENT );
           cullSys.resultFromBits( cullJob );
@@ -1192,6 +1219,7 @@ namespace ocull
       {
         {
           NV_PROFILE_SECTION("CullF");
+		  KG3DPERF_STATE("CullF");
           cullSys.buildOutput( CullingSystem::METHOD_FRUSTUM, cullJob, view );
           cullSys.bitsFromOutput( cullJob, CullingSystem::BITS_CURRENT );
           cullSys.resultFromBits( cullJob );
@@ -1202,6 +1230,7 @@ namespace ocull
 
         {
           NV_PROFILE_SECTION("CullR");
+		  KG3DPERF_STATE("CullR");
           cullSys.buildOutput( CullingSystem::METHOD_RASTER, cullJob, view );
           cullSys.bitsFromOutput( cullJob, CullingSystem::BITS_CURRENT );
           cullSys.resultFromBits( cullJob );
@@ -1215,6 +1244,7 @@ namespace ocull
 
   void Sample::drawCullingRegularLastFrame(CullingSystem::Job& cullJob)
   {
+	  KG3DPERF_STATE("drawCullingRegularLastFrame");
     CullingSystem::View view;
     view.viewPos = sceneUbo.viewPos.get_value();
     view.viewDir = sceneUbo.viewDir.get_value();
@@ -1393,14 +1423,20 @@ namespace ocull
       switch(tweak.result)
       {
       case RESULT_REGULAR_CURRENT:
-        drawCullingRegular(cullJob);
-        break;
+	  {
+		  drawCullingRegular(cullJob);
+		  break;
+	  }
       case RESULT_REGULAR_LASTFRAME:
-        drawCullingRegularLastFrame(cullJob);
-        break;
+	  {		  
+		  drawCullingRegularLastFrame(cullJob);
+		  break;
+	  }
       case RESULT_TEMPORAL_CURRENT:
-        drawCullingTemporal(cullJob);
-        break;
+	  {		  
+		  drawCullingTemporal(cullJob);
+		  break;
+	  }
       }
     }
     else{

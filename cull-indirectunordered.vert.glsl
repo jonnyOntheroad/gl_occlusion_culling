@@ -1,14 +1,20 @@
 #version 440
 /**/
 
+// lmz m_bufferIndirectCounter
 layout(binding=0,offset=0)uniform atomic_uint   cullCounterBuffer;
+
+// lmz m_bufferIndirectResult
 layout(std430,binding=0)  writeonly buffer outputBuffer {
   int outcmds[];
 };
 
+// lmz m_bufferObjectIndirects
 layout(std430,binding=1)  readonly buffer inputBuffer {
   int incmds[];
 };
+
+// lmz bufferVisBitsCurrent
 layout(std430,binding=2)  readonly buffer visibleBuffer {
   int visibles[];
 };
@@ -27,6 +33,7 @@ void main ()
   if ( (visibles[gl_VertexID/32] & (1<<(gl_VertexID%32))) != 0 ){
     uint slot = atomicCounterIncrement(cullCounterBuffer);
     
+    // lmz output drawcmd for visible objects
     for (uint i = 0; i < COMMANDSIZE; i++){
       outcmds[slot * COMMANDSTRIDE + i] = incmds[ gl_VertexID * COMMANDSTRIDE + i ];
     }

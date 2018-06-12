@@ -11,29 +11,30 @@
 #extension GL_ARB_explicit_attrib_location : require
 #extension GL_ARB_shader_storage_buffer_object : enable
 
+// lmz Array buffer, input vertex attributes
 layout(location=0) in uvec4 instream[8];
 
 #if TEMPORAL
-layout(location=9) in uint last;
+  layout(location=9) in uint last;
 #endif
 
 #if GL_ARB_shader_storage_buffer_object
-layout(std430,binding=0)  writeonly buffer outputBuffer {
-  uint outstream[];
-};
+  layout(std430,binding=0)  writeonly buffer outputBuffer {
+    uint outstream[];
+  };
 
-void storeOutput(uint value)
-{
-  outstream[gl_VertexID] = value;
-}
+  void storeOutput(uint value)
+  {
+    outstream[gl_VertexID] = value;
+  }
 
 #else
-flat out uint outstream;
+  flat out uint outstream;
 
-void storeOutput(uint value)
-{
-  outstream= value;
-}
+  void storeOutput(uint value)
+  {
+    outstream= value;
+  }
 #endif
 
 void main ()

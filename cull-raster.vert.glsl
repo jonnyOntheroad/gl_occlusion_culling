@@ -20,16 +20,16 @@ layout(std430,binding=0) buffer visibleBuffer {
 uniform samplerBuffer matricesTex;
 
 #ifdef DUALINDEX
-layout(location=0) in int  bboxIndex;
-layout(location=2) in int  matrixIndex;
-uniform samplerBuffer     bboxesTex;
+  layout(location=0) in int  bboxIndex;
+  layout(location=2) in int  matrixIndex;
+  uniform samplerBuffer     bboxesTex;
 
-vec4 bboxMin = texelFetch(bboxesTex, bboxIndex*2+0);
-vec4 bboxMax = texelFetch(bboxesTex, bboxIndex*2+1);
+  vec4 bboxMin = texelFetch(bboxesTex, bboxIndex*2+0);
+  vec4 bboxMax = texelFetch(bboxesTex, bboxIndex*2+1);
 #else
-layout(location=0) in vec4 bboxMin;
-layout(location=1) in vec4 bboxMax;
-layout(location=2) in int  matrixIndex;
+  layout(location=0) in vec4 bboxMin;
+  layout(location=1) in vec4 bboxMax;
+  layout(location=2) in int  matrixIndex;
 #endif
 
 uniform vec3 viewPos;

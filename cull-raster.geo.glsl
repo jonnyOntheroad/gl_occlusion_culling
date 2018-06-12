@@ -57,6 +57,7 @@ void main()
   
   int id = gl_InvocationID;
 
+  // lmz ??? primitive is GL_POINTS, why 1, 2
   if (id == 0)
   {
       faceNormal.x = IN[0].bboxDim.x;
@@ -98,6 +99,7 @@ void main()
   
   objid = IN[0].objid;
   
+  // lmz Geometry shader is setted: input type: GL_POINTS, out type: GL_TRIANGLE_STRIP
 #if FLIPWIND
   gl_Position = viewProjTM * vec4(worldCtr + (faceNormal - edgeBasis0 - edgeBasis1),1);
   EmitVertex();

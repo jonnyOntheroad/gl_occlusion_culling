@@ -1,5 +1,8 @@
 #version 330
+//#version 440
 /**/
+
+//layout(binding=0,offset=0)uniform atomic_uint   cullCounterBuffer;
 
 out vec2 uv;
 
@@ -11,6 +14,8 @@ void main()
       0, 1.0);
       
   uv = pos.xy * 0.5 + 0.5;
+
+  //atomicCounterIncrement(cullCounterBuffer);
   
   gl_Position = pos;
 }
